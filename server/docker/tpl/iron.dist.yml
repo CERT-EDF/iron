@@ -1,0 +1,68 @@
+# ------------------------------------------------------------------------------
+# iron server configuration
+server:
+  host: 0.0.0.0
+  port: 8080
+  client_max_size: 104857600
+# ------------------------------------------------------------------------------
+# iron storage configuration
+storage:
+  directory: /data/iron
+# ------------------------------------------------------------------------------
+# fusion auth api configuration
+auth_api:
+  backend:
+    strategy: basic
+    basic:
+      groups: []
+      users:
+        - username: test
+          digest: argon2-digest-goes-here
+          groups:
+            - DFIR
+  clients: []
+  iron_key: null
+# ------------------------------------------------------------------------------
+# fusion info api configuration
+info_api:
+  auth_required: false
+# ------------------------------------------------------------------------------
+# fusion event api configuration
+event_api:
+  webhook: https://n8n.domain.lan/webhook/iron
+  api_key: api-key-placeholder
+  api_ssl: false
+  timeout: 5
+# ------------------------------------------------------------------------------
+# fusion constant api configuration
+constant_api:
+  auth_required: true
+  constant_path: /conf/constant.yml
+# ------------------------------------------------------------------------------
+# iron connectors configuration
+connectors:
+  # case activity journal - carbon
+  - name: carbon
+    xref: /case/{case.guid}
+    api_url: https://carbon.domain.lan/
+    metadata: {}
+    api_key: api-key-placeholder
+    api_ssl: false
+  # software sample database - neon
+  - name: neon
+    xref: /case/{case.guid}
+    api_url: https://neon.domain.lan/
+    metadata: {}
+    api_key: api-key-placeholder
+    api_ssl: false
+  # artifact collection & processing - helium
+  - name: helium
+    xref: /case/{case.guid}
+    api_url: https://helium.domain.lan/
+    metadata: {}
+    api_key: api-key-placeholder
+    api_ssl: false
+# ------------------------------------------------------------------------------
+# iron synchronizer configuration
+synchronizer:
+  directory: /data/fusion-syncfs

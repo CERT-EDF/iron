@@ -1,0 +1,30 @@
+name: Iron Check
+
+on:
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v5
+      with:
+        fetch-depth: 0
+    - name: Setup Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: "3.12"
+    - name: Setup Iron
+      run: |
+        python3 -m pip install --upgrade pip
+        python3 -m pip install core/ server/ client/
+    - name: Test Iron
+      run: |
+        iron-server -h

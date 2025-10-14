@@ -1,0 +1,55 @@
+# ------------------------------------------------------------------------------
+# iron proxy server configuration
+server:
+  # ip to listen on
+  host: 127.0.0.1
+  # port to listen on
+  port: 10000
+  # max size for client request (bytes)
+  client_max_size: 104857600
+# ------------------------------------------------------------------------------
+# iron proxy storage configuration
+storage:
+  # path to directory where service data will be stored
+  directory: /data/iron_x_iris/data/storage
+# ------------------------------------------------------------------------------
+# fusion auth api configuration
+auth_api:
+  # authentication backend configuration, leave empty
+  backend: {}
+  # array of api-only clients
+  clients:
+      # client name
+    - name: api-client-name
+      # client key
+      key: null
+  # iron service key (not part of clients because of case.managed flag)
+  iron_key: null
+# ------------------------------------------------------------------------------
+# fusion case api configuration
+case_api: {}
+# ------------------------------------------------------------------------------
+# fusion info api configuration
+info_api:
+  # wether to allow unauthenticated access or not
+  auth_required: false
+# ------------------------------------------------------------------------------
+# iron proxy dfir iris client configuration
+iris_client:
+  # iris api url
+  api_url: https://iris.domain.lan/
+  # iris api key
+  api_key: api-key-placeholder
+  # wether to perform SSL checks or not
+  api_ssl: false
+  # default case customer id
+  case_customer_id: 0
+  # default case template id (null if no template)
+  case_template_id: null
+  # default case classification id (null if no classification id)
+  case_classification_id: null
+  # wether to update iris case summary or not
+  update_case_summary: true
+  # wether to append iron guid as a custom attribute in iris or not
+  # true, means that {"Iron": {"GUID": }} custom attribute will be set
+  append_case_custom_attributes: true

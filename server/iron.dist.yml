@@ -1,0 +1,120 @@
+# ------------------------------------------------------------------------------
+# iron server configuration
+server:
+  # ip to listen on
+  host: 127.0.0.1
+  # port to listen on
+  port: 10000
+  # max size for client request (bytes)
+  client_max_size: 104857600
+# ------------------------------------------------------------------------------
+# iron storage configuration
+storage:
+  # path to directory where service data will be stored
+  directory: /data/iron/data/storage
+# ------------------------------------------------------------------------------
+# fusion auth api configuration
+auth_api:
+  # authentication backend configuration
+  backend:
+    # which backend will be used, use 'basic' or 'keycloak'
+    strategy: basic
+    # basic backend configuration
+    basic:
+      # array of group names to inject into user if user.groups is empty
+      groups: []
+      # array of users
+      users:
+          # user name
+        - username: test
+          # argon2 digest of user secret
+          digest: argon2-digest-goes-here
+          # user groups (if empty, basic.groups will be injected here)
+          groups:
+            - DFIR
+        }
+    # keycloak backend configuration
+    keycloak:
+      # keycloak url
+      url: https://keycloak.domain.lan
+      # service client id
+      client_id: iron
+      # service realm
+      realm_name: master
+      # service client secret
+      client_secret: replace-me-with-a-secret
+      # service redirect uri
+      redirect_uri: https://iron.domain.lan/login
+      # wether to include /auth or not in the url
+      include_auth: true
+      # wether to perform SSL checks or not
+      verify: true
+  # array of api-only clients
+  clients:
+      # client name
+    - name: api-client-name
+      # client key
+      key: null
+  # iron service key (not part of clients because of case.managed flag)
+  iron_key: null
+# ------------------------------------------------------------------------------
+# fusion case api configuration
+case_api: {}
+# ------------------------------------------------------------------------------
+# fusion info api configuration
+info_api:
+  # wether to allow unauthenticated access or not
+  auth_required: false
+# ------------------------------------------------------------------------------
+# fusion event api configuration
+event_api:
+  # general webhook url
+  webhook: https://n8n.domain.lan/webhook/iron
+  # api key for authenticated webhook
+  api_key: api-key-placeholder
+  # wether to perform SSL checks or not
+  api_ssl: true
+  # timeout for webhook POST request
+  timeout: 5
+# ------------------------------------------------------------------------------
+# fusion constant api configuration
+constant_api:
+  # wether to allow unauthenticated access or not
+  auth_required: true
+  # path to hot-reloaded configuration file
+  constant_path: constant.yml
+# ------------------------------------------------------------------------------
+# iron connectors configuration
+connectors:
+  # artifact collection & processing - helium
+    # service name
+  - name: helium
+    # service path template to use for URL generation
+    xref: /case/{case.guid}
+    # service api url
+    api_url: https://helium.domain.lan/
+    # service custom metadata
+    metadata: {}
+    # api key for authentication
+    api_key: api-key-placeholder
+    # wether to perform SSL checks or not
+    api_ssl: true
+  # case activity journal - carbon
+  - name: carbon
+    xref: /case/{case.guid}
+    api_url: https://carbon.domain.lan/
+    metadata: {}
+    api_key: api-key-placeholder
+    api_ssl: true
+  # software sample database - neon
+  - name: neon
+    xref: /case/{case.guid}
+    api_url: https://neon.domain.lan/
+    metadata: {}
+    api_key: api-key-placeholder
+    api_ssl: true
+# ------------------------------------------------------------------------------
+# iron synchronizer configuration
+synchronizer:
+  # case data will be synchronized to this directory
+  directory: /data/fusion-syncfs

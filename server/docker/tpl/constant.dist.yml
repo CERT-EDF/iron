@@ -1,0 +1,4 @@
+# banner is displayed at the top of the web browser page
+banner: null
+# wether to allow case creation with empty acs or not
+allow_empty_acs: true

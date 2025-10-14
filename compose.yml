@@ -1,0 +1,40 @@
+services:
+
+  iron-frontend:
+    build:
+      context: ./web
+      no_cache: true
+      args:
+        GIT_TAG: ${GIT_TAG:?Error GIT_TAG is missing}
+    image: cert-edf/iron-fe
+    pull_policy: build
+    ports:
+      - 127.0.0.1:8120:80
+
+  iron-backend:
+    build: 
+      context: ./server/docker
+      no_cache: true
+    image: cert-edf/iron-be
+    pull_policy: build
+    ports:
+      - 127.0.0.1:8110:8080
+    volumes:
+      - /data/iron/conf:/conf
+      - /data/iron/data:/data
+    environment:
+      ROLE: server
+      FUSION_DEBUG: 0
+
+  iron-synchronizer:
+    build: 
+      context: ./server/docker
+      no_cache: true
+    image: cert-edf/iron-be
+    pull_policy: build
+    volumes:
+      - /data/iron/conf:/conf
+      - /data/iron/data:/data
+    environment:
+      ROLE: synchronizer
+      FUSION_DEBUG: 0
