@@ -83,6 +83,7 @@ export class CaseComponent {
     if (!serviceCaseMeta) return 'Missing';
     if (ironCase.closed && serviceCaseMeta.closed) return 'Closed';
     if (ironCase.closed && !serviceCaseMeta.closed) return 'Outdated';
+    if (!ironCase.updated && serviceCaseMeta.updated) return 'Synced';
     if (!ironCase.updated && !serviceCaseMeta.updated) return 'Synced';
     if (ironCase.updated && !serviceCaseMeta.updated) return 'Outdated';
     if (ironCase.updated && serviceCaseMeta.updated && ironCase.updated > serviceCaseMeta.updated) return 'Outdated';
@@ -292,7 +293,10 @@ export class CaseComponent {
         .attachCaseService(service.name, guid, this.caseMeta!.guid)
         .pipe(take(1))
         .subscribe({
-          next: (resp) => (this.caseMeta = resp),
+          next: (caseMeta) => {
+            this.caseMeta = caseMeta;
+            this.probeCaseServices();
+          },
         });
     });
   }
