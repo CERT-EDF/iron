@@ -47,10 +47,10 @@ Basic HTTP example using Nginx:
 ```nginx
 server {
     listen 80;
-    server_name carbon.domain.lan;
+    server_name iron.domain.lan;
 
-    access_log  /var/log/nginx/neon.access.log;
-    error_log  /var/log/nginx/neon.error.log
+    access_log  /var/log/nginx/iron.access.log;
+    error_log  /var/log/nginx/iron.error.log
 
     proxy_http_version 1.1;
     proxy_set_header X-Real-IP $remote_addr;
