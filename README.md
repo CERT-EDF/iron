@@ -50,7 +50,7 @@ server {
     server_name iron.domain.lan;
 
     access_log  /var/log/nginx/iron.access.log;
-    error_log  /var/log/nginx/iron.error.log
+    error_log  /var/log/nginx/iron.error.log;
 
     proxy_http_version 1.1;
     proxy_set_header X-Real-IP $remote_addr;
@@ -58,7 +58,7 @@ server {
     proxy_set_header X-Forwarded-Proto $scheme;
 
     location /api {
-      proxy_pass http://127.0.0.1:8010;
+      proxy_pass http://127.0.0.1:8110;
       client_max_body_size 4G;
       proxy_buffering off;
       proxy_set_header Upgrade $http_upgrade;
@@ -67,7 +67,7 @@ server {
     }
 
     location / {
-      proxy_pass http://127.0.0.1:8020;
+      proxy_pass http://127.0.0.1:8120;
     }
   }
 ```
