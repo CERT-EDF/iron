@@ -1,0 +1,34 @@
+services:
+
+  iron-x-iris-redis:
+    image: redis:alpine
+    command: redis-server --save 300 1 --loglevel warning
+    networks:
+      - private
+    volumes:
+      - /data/iron-x-iris/redis:/data
+    environment:
+      SKIP_DROP_PRIVS: 1
+
+  iron-x-iris:
+    build:
+      context: ./docker
+      no_cache: true
+    image: cert-edf/iron-x-iris
+    pull_policy: build
+    ports:
+      - 127.0.0.1:8130:8080
+    networks:
+      - default
+      - private
+    volumes:
+      - /data/iron-x-iris/conf:/conf
+      - /data/iron-x-iris/data:/data
+    depends_on:
+      - iron-x-iris-redis
+    environment:
+      ROLE: proxy
+      FUSION_DEBUG: 0
+
+networks:
+  private:

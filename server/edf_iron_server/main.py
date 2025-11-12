@@ -7,6 +7,7 @@ from aiohttp.web import Application, Request, run_app
 from edf_fusion.concept import Constant, Identity, Info
 from edf_fusion.helper.config import ConfigError
 from edf_fusion.helper.logging import get_logger
+from edf_fusion.helper.redis import setup_redis
 from edf_fusion.server.auth import FusionAuthAPI, get_fusion_auth_api
 from edf_fusion.server.constant import FusionConstantAPI
 from edf_fusion.server.event import FusionEventAPI
@@ -41,16 +42,18 @@ async def _authorize_impl(
 async def _init_app(config: IronServerConfig):
     webapp = Application(client_max_size=config.server.client_max_size)
     config.setup(webapp)
+    redis = setup_redis(webapp, config.server.redis_url)
     setup_connectors(webapp, config.connectors)
     fusion_auth_api = FusionAuthAPI(
-        config=config.auth_api,
-        authorize_impl=_authorize_impl,
+        redis=redis, config=config.auth_api, authorize_impl=_authorize_impl
     )
     fusion_auth_api.setup(webapp)
     info = Info(api='iron', version=version)
     fusion_info_api = FusionInfoAPI(info=info, config=config.info_api)
     fusion_info_api.setup(webapp)
-    fusion_event_api = FusionEventAPI(config=config.event_api, event_cls=Event)
+    fusion_event_api = FusionEventAPI(
+        redis=redis, config=config.event_api, event_cls=Event
+    )
     fusion_event_api.setup(webapp)
     fusion_constant_api = FusionConstantAPI(
         config=config.constant_api, constant_cls=Constant

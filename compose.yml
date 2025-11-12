@@ -1,4 +1,15 @@
+# Do not use this compose file for production deployments
 services:
+
+  iron-redis:
+    image: redis:alpine
+    command: redis-server --save 300 1 --loglevel warning
+    networks:
+      - private
+    volumes:
+      - /data/iron/redis:/data
+    environment:
+      SKIP_DROP_PRIVS: 1
 
   iron-frontend:
     build:
@@ -19,9 +30,14 @@ services:
     pull_policy: build
     ports:
       - 127.0.0.1:8110:8080
+    networks:
+      - default
+      - private
     volumes:
       - /data/iron/conf:/conf
       - /data/iron/data:/data
+    depends_on:
+      - iron-redis
     environment:
       ROLE: server
       FUSION_DEBUG: 0
@@ -38,3 +54,6 @@ services:
     environment:
       ROLE: synchronizer
       FUSION_DEBUG: 0
+
+networks:
+  private:

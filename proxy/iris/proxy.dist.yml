@@ -5,6 +5,8 @@ server:
   host: 127.0.0.1
   # port to listen on
   port: 10000
+  # redis url
+  redis_url: redis://localhost:6379
   # max size for client request (bytes)
   client_max_size: 104857600
 # ------------------------------------------------------------------------------

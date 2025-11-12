@@ -7,6 +7,7 @@ from aiohttp.web import Application, Request, run_app
 from edf_fusion.concept import Case, Identity, Info
 from edf_fusion.helper.config import ConfigError
 from edf_fusion.helper.logging import get_logger
+from edf_fusion.helper.redis import setup_redis
 from edf_fusion.server.auth import FusionAuthAPI, get_fusion_auth_api
 from edf_fusion.server.case import FusionCaseAPI
 from edf_fusion.server.info import FusionInfoAPI
@@ -65,7 +66,9 @@ def _parse_args() -> Namespace:
 async def _init_app(config: IronProxyConfig) -> Application:
     webapp = Application(client_max_size=config.server.client_max_size)
     config.setup(webapp)
+    redis = setup_redis(webapp, config.server.redis_url)
     fusion_auth_api = FusionAuthAPI(
+        redis=redis,
         config=config.auth_api,
         authorize_impl=_authorize_impl,
     )
