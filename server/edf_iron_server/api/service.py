@@ -69,6 +69,29 @@ async def attach_service_case(request: Request):
     return json_response(data=svc_case.to_dict())
 
 
+async def delete_service_case(request: Request):
+    """Delete service case"""
+    case_guid = get_guid(request, 'case_guid')
+    if not case_guid:
+        return json_response(status=400, message="Invalid GUID")
+    service_name, iron_connector = _get_connector(request)
+    if not iron_connector:
+        return json_response(status=400, message="Bad service")
+    await prologue(
+        request,
+        'delete_service_case',
+        context={
+            'service_name': service_name,
+            'case_guid': case_guid,
+            'is_delete_op': True,
+        },
+    )
+    deleted = await iron_connector.case_api.delete_case(case_guid)
+    if not deleted:
+        return json_response(status=400, message="Not deleted")
+    return json_response()
+
+
 async def enumerate_service_cases(request: Request):
     """Enumerate service unmanaged cases"""
     service_name, iron_connector = _get_connector(request)

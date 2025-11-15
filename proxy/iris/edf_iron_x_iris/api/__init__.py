@@ -8,6 +8,7 @@ from ..config import get_proxy_config
 from .case import (
     attach_case_impl,
     create_case_impl,
+    delete_case_impl,
     enumerate_cases_impl,
     retrieve_case_impl,
     update_case_impl,

@@ -27,6 +27,8 @@ auth_api:
       key: null
   # iron service key (not part of clients because of case.managed flag)
   iron_key: null
+  # access control set allowing to delete
+  can_delete_acs: []
 # ------------------------------------------------------------------------------
 # fusion case api configuration
 case_api: {}

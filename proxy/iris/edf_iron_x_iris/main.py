@@ -17,6 +17,7 @@ from .__version__ import version
 from .api import (
     attach_case_impl,
     create_case_impl,
+    delete_case_impl,
     enumerate_cases_impl,
     retrieve_case_impl,
     setup_redirect,
@@ -82,6 +83,7 @@ async def _init_app(config: IronProxyConfig) -> Application:
         attach_case_impl=attach_case_impl,
         create_case_impl=create_case_impl,
         update_case_impl=update_case_impl,
+        delete_case_impl=delete_case_impl,
         retrieve_case_impl=retrieve_case_impl,
         enumerate_cases_impl=enumerate_cases_impl,
     )

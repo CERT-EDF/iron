@@ -72,6 +72,22 @@ async def retrieve_case(request: Request):
     return json_response(data=case.to_dict())
 
 
+async def delete_case(request: Request):
+    """Delete case"""
+    case_guid = get_guid(request, 'case_guid')
+    if not case_guid:
+        return json_response(status=400, message="Invalid GUID")
+    _, storage = await prologue(
+        request,
+        'delete_case',
+        {'case_guid': case_guid, 'is_delete_op': True},
+    )
+    deleted = await storage.delete_case(case_guid)
+    if not deleted:
+        return json_response(status=400, message="Not deleted")
+    return json_response()
+
+
 async def enumerate_cases(request: Request):
     """Enumerate cases"""
     identity, storage = await prologue(request, 'enumerate_cases', {})

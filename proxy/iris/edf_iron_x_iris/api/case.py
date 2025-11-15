@@ -5,6 +5,7 @@ from edf_fusion.helper.logging import get_logger
 from edf_fusion.server.case import (
     AttachContext,
     CreateContext,
+    DeleteContext,
     EnumerateContext,
     RetrieveContext,
     UpdateContext,
@@ -31,6 +32,12 @@ async def update_case_impl(ctx: UpdateContext) -> Case | None:
     """Update case"""
     iris_client = get_iris_client(ctx.request)
     return await iris_client.update_case(ctx.case_guid, ctx.body)
+
+
+async def delete_case_impl(ctx: DeleteContext) -> bool:
+    """Delete case"""
+    iris_client = get_iris_client(ctx.request)
+    return await iris_client.delete_case(ctx.case_guid)
 
 
 async def retrieve_case_impl(ctx: RetrieveContext) -> Case | None:
