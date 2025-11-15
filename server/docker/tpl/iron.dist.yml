@@ -23,6 +23,7 @@ auth_api:
             - DFIR
   clients: []
   iron_key: null
+  can_delete_acs: []
 # ------------------------------------------------------------------------------
 # fusion info api configuration
 info_api:

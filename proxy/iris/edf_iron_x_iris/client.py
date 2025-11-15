@@ -120,6 +120,13 @@ class IRISClient:
         async with self.session.post(endpoint, json=dct, **kwargs) as resp:
             return await self._handle_json_response(resp)
 
+    async def _manage_cases_delete(self, iris_id: int) -> bool:
+        kwargs = self._request_kwargs()
+        endpoint = f'/manage/cases/delete/{iris_id}'
+        async with self.session.post(endpoint, **kwargs) as resp:
+            data = await self._handle_json_response(resp)
+            return isinstance(data, list)
+
     async def attach_case(
         self, case_guid: UUID, next_case_guid: UUID
     ) -> Case | None:
@@ -205,6 +212,17 @@ class IRISClient:
         # update stored case
         return await self.storage.update_case(case.guid, dct)
 
+    async def delete_case(self, case_guid: UUID) -> bool:
+        """Delete case"""
+        case = await self.storage.retrieve_case(case_guid)
+        if not case:
+            return None
+        deleted = await self._manage_cases_delete(case.iris_id)
+        if not deleted:
+            return False
+        await self.storage.delete_case(case_guid)
+        return True
+
     async def retrieve_case(self, case_guid: UUID) -> Case | None:
         """Retrieve case"""
         case = await self.storage.retrieve_case(case_guid)
@@ -217,7 +235,7 @@ class IRISClient:
             _LOGGER.warning(
                 "failed to retrieve case %d from iris", case.iris_id
             )
-            await self.storage.remove_case(case.guid)
+            await self.storage.delete_case(case.guid)
             return None
         return case
 
@@ -231,7 +249,7 @@ class IRISClient:
                 _LOGGER.warning(
                     "failed to retrieve case %d from iris", case.iris_id
                 )
-                await self.storage.remove_case(case.guid)
+                await self.storage.delete_case(case.guid)
                 continue
             yield case
 

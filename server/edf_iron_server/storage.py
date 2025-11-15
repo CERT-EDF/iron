@@ -57,6 +57,11 @@ class Storage(FusionStorage):
         case.to_filepath(metadata)
         return case
 
+    async def delete_case(self, case_guid: UUID) -> bool:
+        case_storage = self.case_storage(case_guid)
+        case_storage.remove()
+        return True
+
     async def retrieve_case(self, case_guid: UUID) -> Case | None:
         case_storage = self.case_storage(case_guid)
         metadata = case_storage.metadata

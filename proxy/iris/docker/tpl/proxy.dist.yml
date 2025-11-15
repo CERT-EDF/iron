@@ -19,6 +19,7 @@ auth_api:
       users: []
   clients: []
   iron_key: null
+  can_delete_acs: []
 # ------------------------------------------------------------------------------
 # fusion case api configuration
 case_api: {}

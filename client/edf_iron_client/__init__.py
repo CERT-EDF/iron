@@ -33,6 +33,13 @@ class IronClient:
         endpoint = f'/api/service/{service.name}/case/{case_guid}'
         return await self.fusion_client.post(endpoint, concept_cls=Case)
 
+    async def delete_service_case(
+        self, service: Service, case_guid: UUID
+    ) -> bool:
+        """Delete service case"""
+        endpoint = f'/api/service/{service.name}/case/{case_guid}'
+        return await self.fusion_client.delete(endpoint)
+
     async def probe_service_case(
         self, service: Service, case_guid: UUID
     ) -> Case | None:
