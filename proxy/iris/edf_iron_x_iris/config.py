@@ -23,9 +23,12 @@ class IRISClientConfig(Loadable):
     api_url: str
     api_key: str
     api_ssl: Fingerprint | SSLContext | bool
+    api_as_admin: bool
+    unmanaged_uids: set[int]
     case_customer_id: int
     case_template_id: int | None
     case_classification_id: int | None
+    update_case_acs: bool
     update_case_summary: bool
     append_case_custom_attributes: bool
 
@@ -35,9 +38,12 @@ class IRISClientConfig(Loadable):
             api_url=dct['api_url'],
             api_key=dct['api_key'],
             api_ssl=load_ssl_config(dct['api_ssl']),
+            api_as_admin=dct['api_as_admin'],
+            unmanaged_uids=set(dct['unmanaged_uids']),
             case_customer_id=dct['case_customer_id'],
             case_template_id=dct.get('case_template_id'),
             case_classification_id=dct.get('case_classification_id'),
+            update_case_acs=dct.get('update_case_acs', True),
             update_case_summary=dct.get('update_case_summary', True),
             append_case_custom_attributes=dct.get(
                 'append_case_custom_attributes', True
