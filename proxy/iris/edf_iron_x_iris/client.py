@@ -146,7 +146,7 @@ class IRISClient:
             'access_level': access_level,
         }
         endpoint = f'/manage/users/{iris_uid}/cases-access/update'
-        async with self.session.get(endpoint, **kwargs) as resp:
+        async with self.session.post(endpoint, **kwargs) as resp:
             data = await self._handle_json_response(resp)
             return data is not None
 
@@ -221,20 +221,25 @@ class IRISClient:
             access_set = await self._manage_users_case_access_update(
                 iris_cid, iris_uid, access_level
             )
-            if not access_set:
-                _LOGGER.warning(
-                    "cannot set access to %d for %s (%d)",
-                    access_level,
-                    iris_login,
-                    iris_uid,
-                )
+            logger_func = _LOGGER.info if access_set else _LOGGER.warning
+            result = "set" if access_set else "cannot set"
+            logger_func(
+                "%s (cid=%d, uid=%d, login=%s, access_level=%d)",
+                result,
+                iris_cid,
+                iris_uid,
+                iris_login,
+                access_level,
+            )
             success = success and access_set
         return success
 
     async def _case_user_access_update(
         self, iris_cid: int, acs: set[str]
     ) -> bool:
-        l_id_map, l_can_access = self._case_user_access_retrieve(iris_cid)
+        l_id_map, l_can_access = await self._case_user_access_retrieve(
+            iris_cid
+        )
         # case acs is empty, grant access to every iris users
         if not acs:
             return await self._case_user_set_access(
