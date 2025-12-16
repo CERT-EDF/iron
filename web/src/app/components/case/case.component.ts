@@ -83,7 +83,10 @@ export class CaseComponent {
       )
       .subscribe({
         next: () => this.probeCaseServices(),
-        error: () => this.utilsService.navigateHomeWithError('Error while retrieving case'),
+        error: () => {
+          this.utilsService.navigateHomeWithError('Error while retrieving case');
+          utilsService.toast('error', 'Not found', 'Case not found');
+        },
       });
   }
 
@@ -106,6 +109,7 @@ export class CaseComponent {
         break;
       case 'update_case':
         this.caseMeta = event.case;
+        this.probeCaseServices();
         break;
       case 'delete_case':
         this.utilsService.toast('info', 'Case deleted', 'This case was deleted');

@@ -39,9 +39,8 @@
       <h1 class="mb-0 p-4 text-xl font-medium theme-text md:text-3xl">Services</h1>
 
       <div class="flex items-center gap-2">
-        <p-button (click)="syncServices()" pTooltip="Sync services" severity="info" text><i class="pi pi-sync"
-            id="syncIcon"></i></p-button>
-        <p-button (click)="refreshServices()" pTooltip="Refresh" severity="help" text><i class="pi pi-refresh"
+        <p-button (click)="syncServices()" pTooltip="Sync services" label="Sync" icon="pi pi-sync" severity="info" text />
+        <p-button (click)="refreshServices()" pTooltip="Refresh" severity="help" label="Refresh" text><i class="pi pi-refresh"
             id="refreshIcon"></i></p-button>
       </div>
     </div>

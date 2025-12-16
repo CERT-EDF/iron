@@ -20,7 +20,7 @@ classifiers = [
     "Topic :: Security",
 ]
 dependencies = [
-    "edf-iron-core~=1.0",
+    "edf-iron-core~=2.0",
 ]
 
 
