@@ -82,9 +82,12 @@ async def delete_case(request: Request):
         'delete_case',
         {'case_guid': case_guid, 'is_delete_op': True},
     )
+    case = await storage.retrieve_case(case_guid)
     deleted = await storage.delete_case(case_guid)
     if not deleted:
         return json_response(status=400, message="Not deleted")
+    fusion_evt_api = get_fusion_evt_api(request)
+    await fusion_evt_api.notify(category='delete_case', case=case)
     return json_response()
 
 

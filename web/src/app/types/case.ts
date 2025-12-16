@@ -11,3 +11,9 @@ export interface CaseMetadata {
 
   unseenNew?: boolean; //Injected value in API getCases
 }
+export interface FusionEvent {
+  source: string;
+  category: string;
+  case: CaseMetadata;
+  ext: any;
+}

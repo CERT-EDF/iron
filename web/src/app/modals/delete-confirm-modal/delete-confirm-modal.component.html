@@ -1,0 +1,15 @@
+<div class="space-y-4">
+  <p class="whitespace-pre">You're about to delete an object</p>
+  
+  <div class="space-y-2">
+      <p class="whitespace-pre">Confirm by typing <code>{{ confirmText }}</code></p>
+      <p-floatlabel variant="in">
+        <input id="confirm" [formControl]="confirmInput" pInputText fluid />
+        <label for="confirm">Confirm</label>
+      </p-floatlabel>
+  </div>
+
+  <div class="text-right">
+    <p-button text label="Confirm" [disabled]="confirmInput.value != confirmText" (click)="close()" />
+  </div>
+</div>
