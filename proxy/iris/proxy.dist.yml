@@ -46,12 +46,19 @@ iris_client:
   api_key: api-key-placeholder
   # wether to perform SSL checks or not
   api_ssl: false
+  # is api user part of IRIS Administrators group
+  api_as_admin: true
+  # iris unmanaged user ids
+  unmanaged_uids: [1]
   # default case customer id
   case_customer_id: 0
   # default case template id (null if no template)
   case_template_id: null
   # default case classification id (null if no classification id)
   case_classification_id: null
+  # wether to update iris case access control set,
+  # requires 'api_as_admin' to be 'true'
+  update_case_acs: true
   # wether to update iris case summary or not
   update_case_summary: true
   # wether to append iron guid as a custom attribute in iris or not

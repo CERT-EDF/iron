@@ -33,8 +33,11 @@ iris_client:
   api_url: https://iris.domain.lan/
   api_key: api-key-placeholder
   api_ssl: false
+  api_as_admin: true
+  unmanaged_uids: [1]
   case_customer_id: 1
   case_template_id: null
   case_classification_id: null
+  update_case_acs: true
   update_case_summary: true
   append_case_custom_attributes: true

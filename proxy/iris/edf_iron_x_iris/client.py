@@ -17,6 +17,8 @@ from .storage import Storage
 
 _LOGGER = get_logger('client', root='iron_x_iris')
 _IRIS_CLIENT = '__iris_client'
+_DENY_ALL = 1
+_FULL_ACCESS = 4
 
 
 @dataclass(kw_only=True)
@@ -46,22 +48,17 @@ class IRISClient:
             return None
         return body.get('data')
 
-    async def _case_summary_update(self, iris_id: int, summary: str) -> bool:
+    async def _case_summary_update(self, iris_cid: int, summary: str) -> bool:
         kwargs = self._request_kwargs()
-        params = {'cid': str(iris_id)}
+        kwargs['json'] = {'case_description': summary}
+        kwargs['params'] = {'cid': str(iris_cid)}
         endpoint = '/case/summary/update'
-        dct = {
-            'case_description': summary,
-        }
-        async with self.session.post(
-            endpoint, params=params, json=dct, **kwargs
-        ) as resp:
+        async with self.session.post(endpoint, **kwargs) as resp:
             data = await self._handle_json_response(resp)
             return bool(data)
 
     async def _manage_cases_add(self, case: Case) -> dict | None:
         kwargs = self._request_kwargs()
-        endpoint = '/manage/cases/add'
         dct = {
             'case_soc_id': case.tsid,
             'case_customer': self.config.case_customer_id,
@@ -75,57 +72,83 @@ class IRISClient:
             dct['classification_id'] = self.config.case_classification_id
         if self.config.append_case_custom_attributes:
             dct['custom_attributes'] = {'Iron': {'GUID': str(case.guid)}}
-        async with self.session.post(endpoint, json=dct, **kwargs) as resp:
+        kwargs['json'] = dct
+        endpoint = '/manage/cases/add'
+        async with self.session.post(endpoint, **kwargs) as resp:
             return await self._handle_json_response(resp)
 
     async def _manage_cases_list(self) -> AsyncIterator[dict]:
         kwargs = self._request_kwargs()
-        params = {'page': 1}
+        kwargs['params'] = {'page': 1}
         endpoint = '/manage/cases/filter'
         while True:
-            async with self.session.get(
-                endpoint, params=params, **kwargs
-            ) as resp:
+            async with self.session.get(endpoint, **kwargs) as resp:
                 data = await self._handle_json_response(resp)
                 for iris_case in data['cases']:
                     yield iris_case
                 if not data['next_page']:
                     break
-                params = {'page': data['next_page']}
+                kwargs['params'] = {'page': data['next_page']}
 
-    async def _manage_cases_filter(self, iris_ids: set[int]) -> dict | None:
-        if not iris_ids:
+    async def _manage_cases_filter(self, iris_cids: set[int]) -> dict | None:
+        if not iris_cids:
             return None
         kwargs = self._request_kwargs()
+        kwargs['params'] = {'case_ids': ','.join(map(str, iris_cids))}
         endpoint = '/manage/cases/filter'
-        params = {'case_ids': ','.join(map(str, iris_ids))}
-        async with self.session.get(endpoint, params=params, **kwargs) as resp:
+        async with self.session.get(endpoint, **kwargs) as resp:
             return await self._handle_json_response(resp)
 
-    async def _manage_cases_close(self, iris_id: int) -> dict | None:
+    async def _manage_cases_close(self, iris_cid: int) -> dict | None:
         kwargs = self._request_kwargs()
-        endpoint = f'/manage/cases/close/{iris_id}'
+        endpoint = f'/manage/cases/close/{iris_cid}'
         async with self.session.post(endpoint, **kwargs) as resp:
             return await self._handle_json_response(resp)
 
-    async def _manage_cases_reopen(self, iris_id: int) -> dict | None:
+    async def _manage_cases_reopen(self, iris_cid: int) -> dict | None:
         kwargs = self._request_kwargs()
-        endpoint = f'/manage/cases/reopen/{iris_id}'
+        endpoint = f'/manage/cases/reopen/{iris_cid}'
         async with self.session.post(endpoint, **kwargs) as resp:
             return await self._handle_json_response(resp)
 
-    async def _manage_cases_update(self, iris_id: int, dct) -> dict | None:
+    async def _manage_cases_update(self, iris_cid: int, dct) -> dict | None:
         kwargs = self._request_kwargs()
-        endpoint = f'/manage/cases/update/{iris_id}'
-        async with self.session.post(endpoint, json=dct, **kwargs) as resp:
+        kwargs['json'] = dct
+        endpoint = f'/manage/cases/update/{iris_cid}'
+        async with self.session.post(endpoint, **kwargs) as resp:
             return await self._handle_json_response(resp)
 
-    async def _manage_cases_delete(self, iris_id: int) -> bool:
+    async def _manage_cases_delete(self, iris_cid: int) -> bool:
         kwargs = self._request_kwargs()
-        endpoint = f'/manage/cases/delete/{iris_id}'
+        endpoint = f'/manage/cases/delete/{iris_cid}'
         async with self.session.post(endpoint, **kwargs) as resp:
             data = await self._handle_json_response(resp)
             return isinstance(data, list)
+
+    async def _manage_users(self, iris_uid: int) -> dict | None:
+        kwargs = self._request_kwargs()
+        endpoint = f'/manage/users/{iris_uid}'
+        async with self.session.get(endpoint, **kwargs) as resp:
+            return await self._handle_json_response(resp)
+
+    async def _manage_users_list(self) -> list | None:
+        kwargs = self._request_kwargs()
+        endpoint = '/manage/users/list'
+        async with self.session.get(endpoint, **kwargs) as resp:
+            return await self._handle_json_response(resp)
+
+    async def _manage_users_case_access_update(
+        self, iris_cid: int, iris_uid: int, access_level: int
+    ) -> bool:
+        kwargs = self._request_kwargs()
+        kwargs['json'] = {
+            'cases_list': [iris_cid],
+            'access_level': access_level,
+        }
+        endpoint = f'/manage/users/{iris_uid}/cases-access/update'
+        async with self.session.post(endpoint, **kwargs) as resp:
+            data = await self._handle_json_response(resp)
+            return data is not None
 
     async def attach_case(
         self, case_guid: UUID, next_case_guid: UUID
@@ -168,6 +191,83 @@ class IRISClient:
         case.iris_id = iris_case['case_id']
         return await self.storage.create_case(managed, case.to_dict())
 
+    async def _case_user_access_retrieve(
+        self, iris_cid: int
+    ) -> tuple[dict[str, int], set[str]]:
+        l_id_map = {}
+        l_can_access = set()
+        everyone = await self._manage_users_list()
+        for someone in everyone:
+            iris_uid = someone['user_id']
+            if iris_uid in self.config.unmanaged_uids:
+                continue
+            u_info = await self._manage_users(iris_uid)
+            u_login = u_info['user_login'].lower()
+            l_id_map[u_login] = iris_uid
+            for c_info in u_info['user_cases_access']:
+                if c_info['case_id'] != iris_cid:
+                    continue
+                if c_info['access_level'] != _FULL_ACCESS:
+                    continue
+                l_can_access.add(u_login)
+                break
+        return l_id_map, l_can_access
+
+    async def _case_user_set_access(
+        self, iris_cid: int, iris_ids: list[tuple[str, int]], access_level: int
+    ) -> bool:
+        success = True
+        for iris_login, iris_uid in iris_ids:
+            access_set = await self._manage_users_case_access_update(
+                iris_cid, iris_uid, access_level
+            )
+            logger_func = _LOGGER.info if access_set else _LOGGER.warning
+            result = "set" if access_set else "cannot set"
+            logger_func(
+                "%s (cid=%d, uid=%d, login=%s, access_level=%d)",
+                result,
+                iris_cid,
+                iris_uid,
+                iris_login,
+                access_level,
+            )
+            success = success and access_set
+        return success
+
+    async def _case_user_access_update(
+        self, iris_cid: int, acs: set[str]
+    ) -> bool:
+        l_id_map, l_can_access = await self._case_user_access_retrieve(
+            iris_cid
+        )
+        # case acs is empty, grant access to every iris users
+        if not acs:
+            return await self._case_user_set_access(
+                iris_cid, list(l_id_map.items()), _FULL_ACCESS
+            )
+        # case acs does not contain known iris users
+        if not acs.intersection(l_id_map.keys()):
+            _LOGGER.warning("case acs does not contain known iris users")
+            return False
+        # case acs contains users, deny user access if needed
+        iris_ids = [
+            (u_login, l_id_map[u_login])
+            for u_login in l_can_access.difference(acs)
+        ]
+        denied = await self._case_user_set_access(
+            iris_cid, iris_ids, _DENY_ALL
+        )
+        # case acs contains users, grant user access if needed
+        iris_ids = [
+            (u_login, l_id_map[u_login])
+            for u_login in acs.difference(l_can_access)
+            if u_login in l_id_map
+        ]
+        granted = await self._case_user_set_access(
+            iris_cid, iris_ids, _FULL_ACCESS
+        )
+        return denied and granted
+
     async def update_case(self, case_guid: UUID, dct) -> Case | None:
         """Update case"""
         case = await self.storage.retrieve_case(case_guid)
@@ -198,6 +298,18 @@ class IRISClient:
             if not updated:
                 _LOGGER.error("failed to update case description!")
                 return None
+        # update case acs
+        access_set = False
+        if (
+            self.config.api_as_admin
+            and self.config.update_case_acs
+            and 'acs' in dct
+        ):
+            access_set = await self._case_user_access_update(
+                case.iris_id, set(dct['acs'])
+            )
+        if not access_set:
+            _LOGGER.warning("cannot or failed to set access!")
         # update iris case
         iris_dct = {}
         if 'name' in dct:
@@ -228,7 +340,7 @@ class IRISClient:
         case = await self.storage.retrieve_case(case_guid)
         if not case:
             return None
-        message = await self._manage_cases_filter(iris_ids={case.iris_id})
+        message = await self._manage_cases_filter({case.iris_id})
         if not message:
             return None
         if not message['cases']:
@@ -242,7 +354,7 @@ class IRISClient:
     async def enumerate_cases(self) -> AsyncIterator[Case]:
         """Enumerate cases"""
         async for case in self.storage.enumerate_cases():
-            message = await self._manage_cases_filter(iris_ids={case.iris_id})
+            message = await self._manage_cases_filter({case.iris_id})
             if not message:
                 continue
             if not message['cases']:
@@ -255,7 +367,7 @@ class IRISClient:
 
 
 async def _iris_client_context(webapp: Application):
-    _LOGGER.info("dfir iris client startup")
+    _LOGGER.info("iris client startup")
     config = get_proxy_config(webapp)
     storage = get_fusion_storage(webapp)
     headers = {'Authorization': f'Bearer {config.iris_client.api_key}'}
@@ -266,7 +378,7 @@ async def _iris_client_context(webapp: Application):
             config=config.iris_client, session=session, storage=storage
         )
         yield
-        _LOGGER.info("setup iris cleanup")
+        _LOGGER.info("iris client startup")
 
 
 def setup_iris_client(webapp: Application):
