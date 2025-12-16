@@ -1,4 +1,4 @@
-import { Component, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, ViewChild } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { FloatLabelModule } from 'primeng/floatlabel';
@@ -12,14 +12,15 @@ import { ClipboardModule } from '@angular/cdk/clipboard';
 import { DialogService } from 'primeng/dynamicdialog';
 import { Menu, MenuModule } from 'primeng/menu';
 import { TooltipModule } from 'primeng/tooltip';
-import { CaseMetadata } from '../../types/case';
+import { CaseMetadata, FusionEvent } from '../../types/case';
 import { UtilsService } from '../../services/utils.service';
 import { MenuItem } from 'primeng/api';
-import { catchError, forkJoin, map, of, take, tap } from 'rxjs';
+import { catchError, forkJoin, map, of, Subscription, take, tap } from 'rxjs';
 import { Service } from '../../types/API';
 import { WebhookModalComponent } from '../../modals/webhook-modal/webhook-modal.component';
 import { AttachModalComponent } from '../../modals/attach-modal/attach-modal.component';
 import { CaseCreateModalComponent } from '../../modals/case-create-modal/case-create-modal.component';
+import { DeleteConfirmModalComponent } from '../../modals/delete-confirm-modal/delete-confirm-modal.component';
 
 @Component({
   selector: 'app-case',
@@ -47,9 +48,12 @@ export class CaseComponent {
   caseMeta!: CaseMetadata;
   services: Service[] = [];
   caseMenuItems: MenuItem[] = [];
+  eventSource!: Subscription;
+  activeUsers: string[] = [];
 
   constructor(
     private apiService: ApiService,
+    private cdr: ChangeDetectorRef,
     private fb: FormBuilder,
     private route: ActivatedRoute,
     private utilsService: UtilsService,
@@ -70,12 +74,52 @@ export class CaseComponent {
         tap(({ services, caseMeta }) => {
           this.services = services;
           this.caseMeta = caseMeta;
+
+          this.eventSource = this.apiService.getCaseEventsSSE(this.caseMeta!.guid).subscribe({
+            next: (event) => this.handleSSEEvent(event),
+            error: (error) => console.error('SSE error:', error),
+          });
         }),
       )
       .subscribe({
         next: () => this.probeCaseServices(),
         error: () => this.utilsService.navigateHomeWithError('Error while retrieving case'),
       });
+  }
+
+  handleSSEEvent(messageEvent: MessageEvent): void {
+    if (!messageEvent.data) return;
+    const event: FusionEvent = JSON.parse(messageEvent.data);
+    const ext = event.ext;
+    switch (event.category) {
+      case 'subscribers':
+        this.activeUsers = ext.usernames;
+        break;
+      case 'subscribe':
+        if (!this.activeUsers.includes(ext.username)) this.activeUsers.push(ext.username);
+        break;
+      case 'unsubscribe':
+        this.activeUsers = this.activeUsers.filter((u) => u !== ext.username);
+        break;
+      case 'service_delete_case':
+        this.probeCaseServices();
+        break;
+      case 'update_case':
+        this.caseMeta = event.case;
+        break;
+      case 'delete_case':
+        this.utilsService.toast('info', 'Case deleted', 'This case was deleted');
+        this.utilsService.navigateHomeWithError();
+        break;
+      default:
+        if (!event.category.startsWith('service_')) break;
+        const service = this.services.find((s) => s.name === ext.service);
+        if (!service) break;
+        service.case_data = event.case as CaseMetadata;
+        service.status = this.computeCaseStatus(event.case);
+        break;
+    }
+    this.cdr.markForCheck();
   }
 
   computeCaseStatus(serviceCaseMeta: CaseMetadata | null): string {
@@ -185,13 +229,40 @@ export class CaseComponent {
   }
 
   constructCaseMenu(ev: any) {
-    const items: MenuItem[] = [
+    if (!this.caseMeta) return;
+    const closeOrReopenItem = this.caseMeta.closed
+      ? {
+          label: 'Reopen',
+          icon: 'pi pi-lock-open',
+          iconClass: 'text-green-500!',
+          command: () =>
+            this.apiService
+              .putCase(this.caseMeta!.guid, { closed: '' })
+              .pipe(take(1))
+              .subscribe({
+                next: (meta) => (this.caseMeta = meta),
+              }),
+        }
+      : {
+          label: 'Close',
+          icon: 'pi pi-times',
+          iconClass: 'text-red-500!',
+          command: () =>
+            this.apiService
+              .putCase(this.caseMeta!.guid, { closed: new Date().toISOString() })
+              .pipe(take(1))
+              .subscribe({
+                next: (meta) => (this.caseMeta = meta),
+              }),
+        };
+
+    this.caseMenuItems = [
       {
         label: 'Copy GUID',
         icon: 'pi pi-tag',
         command: () => {
           try {
-            navigator.clipboard.writeText(this.caseMeta.guid);
+            navigator.clipboard.writeText(this.caseMeta!.guid);
           } catch {
             console.error('Clipboard not available');
             this.utilsService.toast('error', 'Error', 'Clipboard not available');
@@ -204,41 +275,14 @@ export class CaseComponent {
         disabled: !!this.caseMeta.closed,
         command: () => this.openEditCaseModal(),
       },
+      closeOrReopenItem,
+      {
+        label: 'Delete',
+        icon: 'pi pi-trash',
+        iconClass: 'text-red-500!',
+        command: () => this.deleteCase(),
+      },
     ];
-
-    const closeOrReopenItem = this.caseMeta.closed
-      ? {
-          label: 'Reopen',
-          icon: 'pi pi-lock-open',
-          iconClass: 'text-green-500!',
-          command: () =>
-            this.apiService
-              .putCase(this.caseMeta!.guid, { closed: '' })
-              .pipe(take(1))
-              .subscribe({
-                next: (caseMeta) => {
-                  this.caseMeta = caseMeta;
-                  this.probeCaseServices();
-                },
-              }),
-        }
-      : {
-          label: 'Close',
-          icon: 'pi pi-times',
-          iconClass: 'text-red-500!',
-          command: () =>
-            this.apiService
-              .putCase(this.caseMeta!.guid, { closed: new Date().toISOString() })
-              .pipe(take(1))
-              .subscribe({
-                next: (caseMeta) => {
-                  this.caseMeta = caseMeta;
-                  this.probeCaseServices();
-                },
-              }),
-        };
-
-    this.caseMenuItems = [...items, closeOrReopenItem];
     this.caseMenu.toggle(ev);
   }
 
@@ -263,15 +307,26 @@ export class CaseComponent {
   }
 
   updateCase(data: Partial<CaseMetadata>) {
-    this.apiService
-      .putCase(this.caseMeta!.guid, data)
-      .pipe(take(1))
-      .subscribe({
-        next: (caseMeta) => {
-          this.caseMeta = caseMeta;
-          this.probeCaseServices();
-        },
-      });
+    this.apiService.putCase(this.caseMeta!.guid, data).pipe(take(1)).subscribe();
+  }
+
+  deleteCase() {
+    if (!this.caseMeta || !this.caseMeta.name) return;
+    const modal = this.dialogService.open(DeleteConfirmModalComponent, {
+      header: 'Confirm to delete',
+      modal: true,
+      closable: true,
+      dismissableMask: true,
+      breakpoints: {
+        '640px': '90vw',
+      },
+      data: this.caseMeta?.name,
+    });
+
+    modal.onClose.pipe(take(1)).subscribe((confirmed: boolean) => {
+      if (!confirmed) return;
+      this.apiService.deleteCase(this.caseMeta!.guid).pipe(take(1)).subscribe();
+    });
   }
 
   attachService(service: Service) {
@@ -289,15 +344,7 @@ export class CaseComponent {
 
     modal.onClose.pipe(take(1)).subscribe((guid: string) => {
       if (!guid) return;
-      this.apiService
-        .attachCaseService(service.name, guid, this.caseMeta!.guid)
-        .pipe(take(1))
-        .subscribe({
-          next: (caseMeta) => {
-            this.caseMeta = caseMeta;
-            this.probeCaseServices();
-          },
-        });
+      this.apiService.attachCaseService(service.name, guid, this.caseMeta!.guid).pipe(take(1)).subscribe();
     });
   }
 
