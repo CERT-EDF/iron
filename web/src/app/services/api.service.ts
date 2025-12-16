@@ -1,5 +1,16 @@
 import { Injectable, inject } from '@angular/core';
-import { BehaviorSubject, Observable, distinctUntilChanged, map, of, shareReplay, tap } from 'rxjs';
+import {
+  BehaviorSubject,
+  Observable,
+  catchError,
+  distinctUntilChanged,
+  map,
+  of,
+  retry,
+  shareReplay,
+  tap,
+  throwError,
+} from 'rxjs';
 import { HttpClient } from '@angular/common/http';
 import { UtilsService } from './utils.service';
 import { AuthParams } from '../types/OIDC';
@@ -140,6 +151,10 @@ export class ApiService {
       .pipe(map((resp) => resp.data));
   }
 
+  deleteCase(caseGuid: string): Observable<any> {
+    return this.http.delete<any>(`${this.apiBaseUrl}/case/${caseGuid}`);
+  }
+
   attachCaseService(serviceName: string, caseGuid: string, attachGuid: string): Observable<CaseMetadata> {
     return this.http
       .put<
@@ -164,5 +179,30 @@ export class ApiService {
     return this.http
       .post<APIResponse<CaseMetadata>>(`${this.apiBaseUrl}/service/${serviceName}/case/${caseGuid}`, {})
       .pipe(map((c) => c.data));
+  }
+
+  getCaseEventsSSE(guid: string): Observable<MessageEvent> {
+    return new Observable<MessageEvent>((obs) => {
+      const eventSource = new EventSource(`${this.apiBaseUrl}/events/case/${guid}`);
+      eventSource.onmessage = (event: MessageEvent) => obs.next(event);
+      eventSource.onerror = (error) => {
+        this.utils.toast('error', 'EventSource disconnected', 'EventSource disconnected, reconnecting...');
+        obs.error(error);
+        eventSource.close();
+      };
+      eventSource.onopen = () => console.log('EventSource connected');
+      return () => eventSource.close();
+    }).pipe(
+      retry({ count: 5, delay: 1000, resetOnSuccess: true }),
+      catchError((error) => {
+        this.utils.toast(
+          'error',
+          'EventSource disconnected',
+          'Roses are red, Violets are blue, EventSource is disconnected, there is nothing I can do for you',
+          -1,
+        );
+        return throwError(() => error);
+      }),
+    );
   }
 }

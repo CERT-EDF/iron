@@ -25,7 +25,16 @@ export const Interceptor = (req: HttpRequest<unknown>, next: HttpHandlerFn): Obs
           break;
 
         case 403:
-          utilsService.navigateHomeWithError();
+          utilsService.toast('error', 'Forbidden', 'You are not allowed to do this', 3500);
+          break;
+
+        case 404:
+          utilsService.toast(
+            'error',
+            'Not found',
+            `${err.error.message || err.message || 'Entity not found, check console for details'}`,
+            3500,
+          );
           break;
 
         case 502:
