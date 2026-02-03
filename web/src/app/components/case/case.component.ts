@@ -79,6 +79,8 @@ export class CaseComponent {
             next: (event) => this.handleSSEEvent(event),
             error: (error) => console.error('SSE error:', error),
           });
+
+          this.utilsService.setTitle(`Iron - ${caseMeta.name}`);
         }),
       )
       .subscribe({
