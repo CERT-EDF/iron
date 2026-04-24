@@ -3,11 +3,11 @@
 from aiohttp.web import Request
 from edf_fusion.helper.aiohttp import get_guid, json_response
 from edf_fusion.helper.logging import get_logger
-from edf_fusion.server.auth import get_fusion_auth_api
+from edf_fusion.server.auth import Action, get_fusion_auth_api
 from edf_fusion.server.event import get_fusion_evt_api
 
 from ..connector import IronConnector, get_connectors
-from .case import prologue
+from .helper import prologue
 
 _LOGGER = get_logger('server.api.service', root='iron')
 
@@ -20,7 +20,8 @@ def _get_connector(request: Request) -> tuple[str, IronConnector | None]:
 
 async def enumerate_services(request: Request):
     """enumerate cconfigured services"""
-    await prologue(request, 'enumerate_services', {})
+    action = Action(name='enumerate_services')
+    await prologue(request, action)
     iron_connectors = get_connectors(request)
     services = [
         iron_connector.config.service.to_dict()
@@ -38,9 +39,9 @@ async def attach_service_case(request: Request):
     service_name, iron_connector = _get_connector(request)
     if not iron_connector:
         return json_response(status=400, message="Bad service")
-    identity, _ = await prologue(
-        request,
-        'attach_service_case',
+    action = Action(
+        name='attach_service_case',
+        change=True,
         context={
             'service_name': service_name,
             'prev_case_guid': case_guid,
@@ -48,6 +49,7 @@ async def attach_service_case(request: Request):
             'case_guid': next_case_guid,
         },
     )
+    identity, _ = await prologue(request, action)
     # check that user can access service case
     fusion_auth_api = get_fusion_auth_api(request)
     svc_case = await iron_connector.case_api.retrieve_case(case_guid)
@@ -69,7 +71,7 @@ async def attach_service_case(request: Request):
         return json_response(status=404, message="Case not found")
     fusion_evt_api = get_fusion_evt_api(request)
     await fusion_evt_api.notify(
-        category='service_attach_case',
+        category='attach_service_case',
         case=svc_case,
         ext={'service': service_name},
     )
@@ -84,22 +86,22 @@ async def delete_service_case(request: Request):
     service_name, iron_connector = _get_connector(request)
     if not iron_connector:
         return json_response(status=400, message="Bad service")
-    await prologue(
-        request,
-        'delete_service_case',
-        context={
-            'service_name': service_name,
-            'case_guid': case_guid,
-            'is_delete_op': True,
-        },
+    action = Action(
+        name='delete_service_case',
+        change=True,
+        delete=True,
+        context={'service_name': service_name, 'case_guid': case_guid},
     )
+    await prologue(request, action)
+    svc_case = await iron_connector.case_api.retrieve_case(case_guid)
+    if not svc_case:
+        return json_response(status=400, message="Case not found")
     deleted = await iron_connector.case_api.delete_case(case_guid)
     if not deleted:
         return json_response(status=400, message="Not deleted")
     fusion_evt_api = get_fusion_evt_api(request)
-    svc_case = await iron_connector.case_api.retrieve_case(case_guid)
     await fusion_evt_api.notify(
-        category='service_delete_case',
+        category='delete_service_case',
         case=svc_case,
         ext={'service': service_name},
     )
@@ -111,11 +113,10 @@ async def enumerate_service_cases(request: Request):
     service_name, iron_connector = _get_connector(request)
     if not iron_connector:
         return json_response(status=400, message="Bad service")
-    identity, _ = await prologue(
-        request,
-        'enumerate_service_cases',
-        context={'service_name': service_name},
+    action = Action(
+        name='enumerate_service_cases', context={'service_name': service_name}
     )
+    identity, _ = await prologue(request, action)
     fusion_auth_api = get_fusion_auth_api(request)
     cases = await iron_connector.case_api.enumerate_cases()
     cases = [
@@ -134,11 +135,11 @@ async def probe_service_case(request: Request):
     service_name, iron_connector = _get_connector(request)
     if not iron_connector:
         return json_response(status=400, message="Bad service")
-    await prologue(
-        request,
-        'probe_service_case',
+    action = Action(
+        name='probe_service_case',
         context={'service_name': service_name, 'case_guid': case_guid},
     )
+    await prologue(request, action)
     case = await iron_connector.case_api.retrieve_case(case_guid)
     if not case:
         return json_response(status=404, message="Case not found")
@@ -153,11 +154,12 @@ async def sync_service_case(request: Request):
     service_name, iron_connector = _get_connector(request)
     if not iron_connector:
         return json_response(status=400, message="Bad service")
-    _, storage = await prologue(
-        request,
-        'sync_service_case',
+    action = Action(
+        name='sync_service_case',
+        change=True,
         context={'service_name': service_name, 'case_guid': case_guid},
     )
+    _, storage = await prologue(request, action)
     case = await storage.retrieve_case(case_guid)
     svc_case = await iron_connector.case_api.retrieve_case(case_guid)
     if svc_case:

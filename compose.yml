@@ -40,7 +40,8 @@ services:
       - iron-redis
     environment:
       ROLE: server
-      FUSION_DEBUG: 0
+      COLUMNS: ${COLUMNS:-120}
+      FUSION_DEBUG: ${FUSION_DEBUG:-0}
 
   iron-synchronizer:
     build: 
@@ -53,7 +54,8 @@ services:
       - /data/iron/data:/data
     environment:
       ROLE: synchronizer
-      FUSION_DEBUG: 0
+      COLUMNS: ${COLUMNS:-120}
+      FUSION_DEBUG: ${FUSION_DEBUG:-0}
 
 networks:
   private:

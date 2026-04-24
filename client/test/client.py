@@ -3,6 +3,8 @@
 
 from argparse import ArgumentParser
 from asyncio import run
+from dataclasses import dataclass
+from pathlib import Path
 
 from edf_fusion.client import (
     FusionAuthAPIClient,
@@ -14,7 +16,7 @@ from edf_fusion.client import (
 )
 from edf_fusion.concept import Case, Constant
 from edf_fusion.helper.logging import get_logger
-from yarl import URL
+from edf_fusion.helper.serializing import Loadable
 
 from edf_iron_client import IronClient
 
@@ -35,10 +37,10 @@ async def _test_retrieve_constant(fusion_client: FusionClient):
     _LOGGER.info("retrieved constant: %s", constant)
 
 
-async def _test_case_lifecycle(iron_client: IronClient):
+async def _test_case_lifecycle(iron_client: IronClient, acs: set[str]):
     # create case
     case = await iron_client.create_case(
-        Case(tsid=None, name='T', description='D', acs={'test'})
+        Case(tsid=None, name='T', description='D', acs=acs)
     )
     _LOGGER.info("created case: %s", case)
     # update case
@@ -99,13 +101,15 @@ async def _test_service_lifecycle(
         )
 
 
-async def _playbook(fusion_client: FusionClient, service_name: str):
+async def _playbook(
+    fusion_client: FusionClient, acs: set[str], service_name: str
+):
     iron_client = IronClient(fusion_client=fusion_client)
     await _test_retrieve_info(fusion_client)
     await _test_retrieve_constant(fusion_client)
-    await _test_case_lifecycle(iron_client)
+    await _test_case_lifecycle(iron_client, acs)
     case = await iron_client.create_case(
-        Case(tsid=None, name='T', description='D', acs={'test'})
+        Case(tsid=None, name='T', description='D', acs=acs)
     )
     _LOGGER.info("created case: %s", case)
     input("execution paused, press enter to continue!")
@@ -113,40 +117,47 @@ async def _playbook(fusion_client: FusionClient, service_name: str):
     await iron_client.delete_case(case.guid)
 
 
+@dataclass(kw_only=True)
+class TestConfig(Loadable):
+    """Test configuration"""
+
+    url: str
+    key: str
+
+    @classmethod
+    def from_dict(cls, dct):
+        return cls(url=dct['url'], key=dct['key'])
+
+
 def _parse_args():
     parser = ArgumentParser()
-    parser.add_argument(
-        '--api-url',
-        type=URL,
-        default=URL('http://iron.domain.lan/'),
-        help="API URL",
-    )
-    parser.add_argument(
-        '--service-name',
-        default='carbon',
-        help="Service name to use for testing",
-    )
-    return parser.parse_args()
+    parser.add_argument('config', type=Path, help="Test configuration")
+    parser.add_argument('service', help="Service to use for testing")
+    args = parser.parse_args()
+    args.config = TestConfig.from_filepath(args.config)
+    return args
 
 
 async def app():
     """Application entrypoint"""
     args = _parse_args()
-    config = FusionClientConfig(api_url=args.api_url)
+    config = FusionClientConfig(
+        api_url=args.config.url, api_key=args.config.key
+    )
     session = create_session(config, unsafe=True)
     async with session:
         fusion_client = FusionClient(config=config, session=session)
         fusion_auth_api_client = FusionAuthAPIClient(
             fusion_client=fusion_client
         )
-        identity = await fusion_auth_api_client.login('test', 'test')
+        identity = await fusion_auth_api_client.is_logged()
         if not identity:
             return
         _LOGGER.info("logged as: %s", identity)
         try:
-            await _playbook(fusion_client, args.service_name)
-        finally:
-            await fusion_auth_api_client.logout()
+            await _playbook(fusion_client, {identity.username}, args.service)
+        except:
+            _LOGGER.exception("exception raised!")
 
 
 if __name__ == '__main__':

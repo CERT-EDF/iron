@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Iron Server Test"""
+
 from asyncio import run
 from uuid import UUID
 

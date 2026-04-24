@@ -8,7 +8,13 @@ from edf_fusion.concept import Constant, Identity, Info
 from edf_fusion.helper.config import ConfigError
 from edf_fusion.helper.logging import get_logger
 from edf_fusion.helper.redis import setup_redis
-from edf_fusion.server.auth import FusionAuthAPI, get_fusion_auth_api
+from edf_fusion.server.auth import (
+    Access,
+    Action,
+    FusionAuthAPI,
+    get_fusion_auth_api,
+)
+from edf_fusion.server.case import ActionDeleteCase, ActionUpdateCase
 from edf_fusion.server.constant import FusionConstantAPI
 from edf_fusion.server.event import FusionEventAPI
 from edf_fusion.server.info import FusionInfoAPI
@@ -25,18 +31,29 @@ _LOGGER = get_logger('server', root='iron')
 
 
 async def _authorize_impl(
-    identity: Identity, request: Request, context: dict
+    request: Request, action: Action, identity: Identity
 ) -> bool:
     storage = get_fusion_storage(request)
-    fusion_auth_api = get_fusion_auth_api(request)
-    case_guid = context.get('case_guid')
+    case_guid = action.context.get('case_guid')
     if not case_guid:
         return True
     case = await storage.retrieve_case(case_guid)
     if not case:
         _LOGGER.warning("case not found!")
         return False
-    return fusion_auth_api.can_access_case(identity, case)
+    fusion_auth_api = get_fusion_auth_api(request)
+    access = fusion_auth_api.can_access_case(identity, case)
+    if not access or (action.change and access != Access.CHANGE):
+        return False
+    if action.change and case.closed:
+        if isinstance(action, (ActionDeleteCase, ActionUpdateCase)):
+            # allow closed case deletion
+            # allow closed case update to reopen case
+            # (Case.update will prevent closed case modification if not reopen)
+            return True
+        _LOGGER.warning("case closed!")
+        return False
+    return True
 
 
 async def _init_app(config: IronServerConfig):
@@ -60,7 +77,7 @@ async def _init_app(config: IronServerConfig):
     )
     fusion_constant_api.setup(webapp)
     setup_api(webapp)
-    storage = Storage(config=config.storage)
+    storage = Storage(redis=redis, config=config.storage)
     storage.setup(webapp)
     return webapp
 

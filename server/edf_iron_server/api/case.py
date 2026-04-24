@@ -1,34 +1,21 @@
 """Case API"""
 
 from aiohttp.web import Request
-from edf_fusion.concept import Identity
 from edf_fusion.helper.aiohttp import get_guid, get_json_body, json_response
 from edf_fusion.helper.logging import get_logger
-from edf_fusion.server.auth import get_fusion_auth_api
+from edf_fusion.server.auth import Action, get_fusion_auth_api
 from edf_fusion.server.event import get_fusion_evt_api
-from edf_fusion.server.storage import get_fusion_storage
 
-from ..storage import Storage
+from .helper import prologue
 
 _LOGGER = get_logger('server.api.case', root='iron')
-
-
-async def prologue(
-    request: Request, operation: str, context: dict
-) -> tuple[Identity, Storage]:
-    """Determine if authorized and retrieve storage"""
-    fusion_auth_api = get_fusion_auth_api(request)
-    identity = await fusion_auth_api.authorize(
-        request, operation, context=context
-    )
-    storage = get_fusion_storage(request)
-    return identity, storage
 
 
 async def create_case(request: Request):
     """Create case"""
     fusion_evt_api = get_fusion_evt_api(request)
-    _, storage = await prologue(request, 'create_case', {})
+    action = Action(name='create_case')
+    _, storage = await prologue(request, action)
     body = await get_json_body(request)
     if not body:
         return json_response(status=400, message="Bad request")
@@ -45,9 +32,13 @@ async def update_case(request: Request):
     fusion_evt_api = get_fusion_evt_api(request)
     if not case_guid:
         return json_response(status=400, message="Invalid GUID")
-    _, storage = await prologue(
-        request, 'update_case', {'case_guid': case_guid}
+    action = Action(
+        name='update_case',
+        change=True,
+        update_case=True,
+        context={'case_guid': case_guid},
     )
+    _, storage = await prologue(request, action)
     body = await get_json_body(request)
     if not body:
         return json_response(status=400, message="Bad request")
@@ -63,9 +54,8 @@ async def retrieve_case(request: Request):
     case_guid = get_guid(request, 'case_guid')
     if not case_guid:
         return json_response(status=400, message="Invalid GUID")
-    _, storage = await prologue(
-        request, 'retrieve_case', {'case_guid': case_guid}
-    )
+    action = Action(name='retrieve_case', context={'case_guid': case_guid})
+    _, storage = await prologue(request, action)
     case = await storage.retrieve_case(case_guid)
     if not case:
         return json_response(status=404, message="Case not found")
@@ -77,11 +67,13 @@ async def delete_case(request: Request):
     case_guid = get_guid(request, 'case_guid')
     if not case_guid:
         return json_response(status=400, message="Invalid GUID")
-    _, storage = await prologue(
-        request,
-        'delete_case',
-        {'case_guid': case_guid, 'is_delete_op': True},
+    action = Action(
+        name='delete_case',
+        change=True,
+        delete=True,
+        context={'case_guid': case_guid},
     )
+    _, storage = await prologue(request, action)
     case = await storage.retrieve_case(case_guid)
     deleted = await storage.delete_case(case_guid)
     if not deleted:
@@ -93,7 +85,8 @@ async def delete_case(request: Request):
 
 async def enumerate_cases(request: Request):
     """Enumerate cases"""
-    identity, storage = await prologue(request, 'enumerate_cases', {})
+    action = Action(name='enumerate_cases')
+    identity, storage = await prologue(request, action)
     fusion_auth_api = get_fusion_auth_api(request)
     cases = [
         case

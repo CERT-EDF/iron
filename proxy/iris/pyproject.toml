@@ -20,7 +20,7 @@ classifiers = [
     "Topic :: Security",
 ]
 dependencies = [
-    "edf-fusion~=2.0",
+    "edf-fusion~=3.0",
 ]
 
 

@@ -28,7 +28,8 @@ services:
       - iron-x-iris-redis
     environment:
       ROLE: proxy
-      FUSION_DEBUG: 0
+      COLUMNS: ${COLUMNS:-120}
+      FUSION_DEBUG: ${FUSION_DEBUG:-0}
 
 networks:
   private:

@@ -1,4 +1,10 @@
 # =============================================================================
+# FUSION DIRECTIVES
+# =============================================================================
+# fusion:image=cert-edf/iron-x-iris
+# fusion:package=edf-fusion
+# fusion:package=edf-iron-x-iris
+# =============================================================================
 # BUILD IMAGE
 # =============================================================================
 FROM python:3.12-alpine AS build
@@ -11,8 +17,16 @@ FROM python:3.12-alpine AS build
 # -----------------------------------------------------------------------------
 RUN apk add build-base linux-headers && \
     python3 -m venv /venv && \
-    /venv/bin/python -m pip install uv && \
-    /venv/bin/uv pip install --python /venv/bin/python edf-iron-x-iris
+    /venv/bin/python -m pip install uv
+# -----------------------------------------------------------------------------
+# SETUP FUSION PACKAGES (PROD)
+# -----------------------------------------------------------------------------
+RUN /venv/bin/uv pip install --python /venv/bin/python edf-iron-x-iris
+# -----------------------------------------------------------------------------
+# SETUP FUSION PACKAGES (DEV)
+# -----------------------------------------------------------------------------
+#COPY pkg /pkg
+#RUN /venv/bin/uv pip install --python /venv/bin/python --pre --find-links /pkg edf-iron-x-iris
 # =============================================================================
 # PRODUCTION IMAGE
 # =============================================================================
