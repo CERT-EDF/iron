@@ -45,11 +45,11 @@ root = ".."
 version_file = "edf_iron_core/__version__.py"
 
 
-[tool.black]
+[tool.ruff]
+include = ["pyproject.toml", "edf_iron_core/**/*.py"]
+exclude = ["edf_iron_core/__version__.py"]
 line-length = 79
-skip-string-normalization = true
 
 
-[tool.isort]
-profile = "black"
-line_length = 79
+[tool.ruff.format]
+quote-style = "preserve"

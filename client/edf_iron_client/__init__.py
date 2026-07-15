@@ -44,17 +44,13 @@ class IronClient:
         """Retrieve case information"""
         _LOGGER.info("retrieving case %s", case_guid)
         endpoint = f'/api/case/{case_guid}'
-        return await self.fusion_client.get(
-            endpoint, concept_cls=Case
-        )
+        return await self.fusion_client.get(endpoint, concept_cls=Case)
 
     async def enumerate_cases(self) -> list[Case]:
         """Enumerate cases"""
         _LOGGER.info("enumerating cases")
         endpoint = '/api/cases'
-        return await self.fusion_client.get(
-            endpoint, concept_cls=Case
-        )
+        return await self.fusion_client.get(endpoint, concept_cls=Case)
 
     async def enumerate_services(self) -> list[Service] | None:
         """Enumerate services"""
