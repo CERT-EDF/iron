@@ -35,7 +35,6 @@ async def update_case(request: Request):
     action = Action(
         name='update_case',
         change=True,
-        update_case=True,
         context={'case_guid': case_guid},
     )
     _, storage = await prologue(request, action)
